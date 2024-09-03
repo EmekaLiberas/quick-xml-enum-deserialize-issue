@@ -1,5 +1,7 @@
 use oadr::{OadrCancelOptType, OadrCancelPartyRegistrationType, OadrCancelReportType, OadrCreateOptType, OadrCreatePartyRegistrationType, OadrCreateReportType, OadrCreatedEventType, OadrCreatedReportType, OadrDistributeEventType, OadrEvent, OadrPollType, OadrQueryRegistrationType, OadrRegisterReportType, OadrRequestEventType, OadrRequestReregistrationType, OadrResponseType, OadrUpdateReportType};
 use serde::{Deserialize, Serialize};
+use serde::de::{Deserializer};
+use serde_untagged::UntaggedEnumVisitor;
 
 pub mod oadr;
 
@@ -69,9 +71,25 @@ impl_try_from_xml_str! {
     PollResponse
 }
 
+impl<'de> Deserialize<'de> for PollResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        UntaggedEnumVisitor::new()
+            .map(|map| map.deserialize().map(PollResponse::OadrResponseType))
+            .map(|map| map.deserialize().map(PollResponse::OadrDistributeEventType))
+            .map(|map| map.deserialize().map(PollResponse::OadrCreateReportType))
+            .map(|map| map.deserialize().map(PollResponse::OadrRegisterReportType))
+            .map(|map| map.deserialize().map(PollResponse::OadrCancelReportType))
+            .map(|map| map.deserialize().map(PollResponse::OadrUpdateReportType))
+            .map(|map| map.deserialize().map(PollResponse::OadrCancelPartyRegistrationType))
+            .map(|map| map.deserialize().map(PollResponse::OadrRequestReregistrationType))
+            .deserialize(deserializer)
+    }
+}
 
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum PollResponse {
     OadrResponseType(OadrResponseType),
@@ -83,12 +101,6 @@ pub enum PollResponse {
     OadrCancelPartyRegistrationType(OadrCancelPartyRegistrationType),
     OadrRequestReregistrationType(OadrRequestReregistrationType),
 }
-
-/// Below are the actual errors gotten from my terminal when I ran my code in my application
-/// As stated in oadr.rs file structs were modified so as to quickly create an environment to showcase error hence why printed values are different
-///<oadr:OadrDistributeEvent ei:schemaVersion="1"><ei:eiResponses><ei:responseCode>00001</ei:responseCode><ei:responseDescription>response</ei:responseDescription><pyld:requestID>00001</pyld:requestID></ei:eiResponses><pyld:requestID>00001</pyld:requestID><ei:vtnID>00001</ei:vtnID></oadr:OadrDistributeEvent>
-///Error: data did not match any variant of untagged enum PollResponse
-///OadrDistributeEventType(OadrDistributeEventType { ei_response: Some(EiResponseType { response_code: "00001", response_description: Some("response"), request_id: "00001" }), request_id: "00001", vtn_id: "00001", oadr_event: [], schema_version: Some("1") })
 
 fn main() {
     let obj = PollResponse::OadrDistributeEventType(OadrDistributeEventType{ ei_response: Some(String::from("HI")), 
